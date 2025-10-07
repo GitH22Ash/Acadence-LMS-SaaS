@@ -9,8 +9,11 @@ const bricolage = Bricolage_Grotesque({
 });
 
 export const metadata: Metadata = {
-  title: "Converso",
+  title: "Acadence" ,
   description: "Real-time AI Teaching Platform",
+  icons: {
+    icon: "/images/logo.png",
+  },
 };
 
 export default function RootLayout({
