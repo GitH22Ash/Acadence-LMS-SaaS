@@ -19,6 +19,7 @@ export const createCompanion = async (formData: CreateCompanion) => {
     return data[0];
 }
 
+//this function fetches all companions with pagination and filtering options to put in the Companion Library page
 export const getAllCompanions = async ({ limit = 10, page = 1, subject, topic }: GetAllCompanions) => {
     const supabase = createSupabaseClient();
 

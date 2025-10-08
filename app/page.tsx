@@ -1,5 +1,5 @@
 import CompanionsList from '@/components/CompanionsList';
-import CompanionCard from './companions/CompanionCard';
+import CompanionCard from '../components/CompanionCard';
 import CTA from '@/components/CTA';
 import { recentSessions } from '@/constants';
 
