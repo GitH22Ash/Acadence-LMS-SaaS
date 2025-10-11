@@ -8,7 +8,6 @@ import CompanionComponent from "@/components/CompanionComponent";
 interface CompanionSessionPageProps {
     params: Promise<{ id: string}>;
 }
-
 //difference between params and searchParams
 //params /url/{id} -> id 
 //searchParams /url?key=value&key1= value1
@@ -18,7 +17,8 @@ const CompanionSession = async ({ params }: CompanionSessionPageProps) => {
     const companion = await getCompanion(id);
     const user = await currentUser();
 
-    const { name, subject, title, topic, duration } = companion;//destructuring companion to ensure all fields are present
+    const { name, subject, title, topic, duration } = companion;
+    //destructuring companion to ensure all fields are present
 
     if(!user) redirect('/sign-in');
     if(!name) redirect('/companions')
@@ -47,7 +47,7 @@ const CompanionSession = async ({ params }: CompanionSessionPageProps) => {
                     {duration} minutes
                 </div>
             </article>
-              {/* along with the companion details we also need to pass the user details to the CompanionComponent
+            {/* along with the companion details we also need to pass the user details to the CompanionComponent
              so that we can display the user avatar and name in the CompanionComponent
              we can get the user details from the currentUser function from Clerk */}
             <CompanionComponent
@@ -56,13 +56,11 @@ const CompanionSession = async ({ params }: CompanionSessionPageProps) => {
                 userName={user.firstName!}
                 userImage={user.imageUrl!}
             />
-            
         </main>
     )
 }
 
 export default CompanionSession
-
 //for dynamic routing of individual companion sessions based on their IDs we use the [id] folder
 //this file is app/companions/[id]/page.tsx
 //the [id] in the path indicates that this is a dynamic route and the id can be any value

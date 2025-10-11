@@ -4,7 +4,7 @@
 //refer the zod documentation for this creation of this form
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, type Resolver } from "react-hook-form"
-import { z } from "zod" 
+import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select"
 import {subjects} from "@/constants";
 import {Textarea} from "@/components/ui/textarea";
-import {createCompanion} from "@/lib/actions/companion.actions"; 
+import {createCompanion} from "@/lib/actions/companion.actions";
 import {redirect} from "next/navigation";
 
 //This schema is used to validate the form data using zod library
@@ -65,7 +65,7 @@ const CompanionForm = () => {
 
     return (
         <Form {...form}>
-             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                 <FormField
                     control={form.control}
                     name="name"

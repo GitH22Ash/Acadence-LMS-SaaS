@@ -40,7 +40,7 @@ const SearchInput = () => {
                     router.push(newUrl, { scroll: false });
                 }
             }
-        }, 300)
+        }, 500)
     }, [searchQuery, router, searchParams, pathname]);
 
     return (

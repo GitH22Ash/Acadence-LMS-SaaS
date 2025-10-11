@@ -1,5 +1,5 @@
 import {
-    Accordion,
+  Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
