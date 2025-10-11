@@ -42,7 +42,7 @@ export const getAllCompanions = async ({ limit = 10, page = 1, subject, topic }:
 
     return companions;
 }
-
+//this function fetches a single companion by its id to put in the companion details page
 export const getCompanion = async (id: string) => {
     const supabase = createSupabaseClient();
 
@@ -55,7 +55,7 @@ export const getCompanion = async (id: string) => {
 
     return data[0];
 }
-
+//for storing the session history of the user
 export const addToSessionHistory = async (companionId: string) => {
     const { userId } = await auth();
     const supabase = createSupabaseClient();
@@ -82,7 +82,7 @@ export const getRecentSessions = async (limit = 10) => {
 
     return data.map(({ companions }) => companions);
 }
-
+//fetching the session history of a particular user
 export const getUserSessions = async (userId: string, limit = 10) => {
     const supabase = createSupabaseClient();
     const { data, error } = await supabase
@@ -117,9 +117,9 @@ export const newCompanionPermissions = async () => {
 
     if(has({ plan: 'pro' })) {
         return true;
-    } else if(has({ feature: "3_companion_limit" })) {
+    } else if(has({ feature: "3_active_companions" })) {
         limit = 3;
-    } else if(has({ feature: "10_companion_limit" })) {
+    } else if(has({ feature: "10_active_companions" })) {
         limit = 10;
     }
 

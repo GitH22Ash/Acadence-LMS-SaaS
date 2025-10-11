@@ -1,3 +1,4 @@
+
 import {
     Table,
     TableBody,
@@ -67,7 +68,6 @@ const CompanionsList = ({ title, companions, classNames }: CompanionsListProps) 
                             />
                                 </div>
                             </TableCell>
-                            {/* This displays the duration of the course . */}
                             <TableCell>
                                 <div className="flex items-center gap-2 w-full justify-end">
                                     <p className="text-2xl">
