@@ -1,14 +1,19 @@
 import {createClient} from "@supabase/supabase-js";
 import {auth} from "@clerk/nextjs/server";
 
-//To setup the supabase configuration and client with Clerk authentication integration
-export const createSupabaseClient = () => {
+export const createSupabaseClient = async () => {
+    const { getToken } = await auth();
+    const token = await getToken({ template: "supabase" });
+
     return createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-            async accessToken() {
-                return ((await auth()).getToken());
-            }
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            global: {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            },
         }
-    )
+    );
 }
