@@ -1,36 +1,111 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Acadence — Real-Time AI Learning Platform
+
+Acadence is a SaaS platform where users create personalized AI tutoring companions and learn through real-time voice conversations. Each companion can be customized with a subject, topic, voice, and teaching style.
+
+## Features
+
+- **AI Voice Companions** — Create personalized tutors that teach through natural voice conversations powered by Vapi
+- **Subject Library** — Maths, Science, Language, History, Coding, Economics
+- **Session History** — Track completed learning sessions
+- **Bookmarks** — Save favorite companions for quick access
+- **Subscription Plans** — Free tier with upgrade options via Clerk Billing
+- **Dark Mode** — System, Light, and Dark theme support
+- **Responsive Design** — Optimized for desktop, tablet, and mobile
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript 5 |
+| Styling | Tailwind CSS v4 |
+| UI | shadcn/ui (Radix primitives) |
+| Auth | Clerk |
+| Database | Supabase |
+| Voice AI | Vapi |
+| Monitoring | Sentry |
+| Icons | Lucide React |
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 20.9.0 or higher
+- npm, yarn, or pnpm
+
+### Installation
+
+```bash
+git clone https://github.com/GitH22Ash/Acadence-LMS-Saas.git
+cd Acadence-LMS-SaaS
+npm install
+```
+
+### Environment Variables
+
+Copy the example environment file and fill in your values:
+
+```bash
+cp .env.example .env.local
+```
+
+See `.env.example` for the complete list of required variables.
+
+### Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Production Build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm start
+```
 
-## Learn More
+### Other Commands
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run lint          # Run ESLint
+npm run lint:fix      # Auto-fix lint issues
+npm run typecheck     # Run TypeScript type checking
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+├── app/                    # Next.js App Router pages
+│   ├── companions/         # Companion library, creation, sessions
+│   ├── my-journey/         # User profile and history
+│   ├── sign-in/            # Clerk authentication
+│   ├── subscription/       # Pricing plans
+│   ├── globals.css         # Design system and tokens
+│   └── layout.tsx          # Root layout with providers
+├── components/
+│   ├── shared/             # Reusable components (ThemeToggle, EmptyState, etc.)
+│   └── ui/                 # shadcn/ui primitives
+├── lib/
+│   ├── actions/            # Server actions (Supabase queries)
+│   ├── env.ts              # Environment variable validation
+│   ├── supabase.ts         # Supabase client
+│   ├── utils.ts            # Utility functions
+│   └── vapi-client.sdk.ts  # Vapi voice SDK
+├── constants/              # App constants and configuration
+├── types/                  # TypeScript type definitions
+└── public/                 # Static assets (icons, images)
+```
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Deploy to [Vercel](https://vercel.com):
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Connect your GitHub repository
+2. Set all environment variables from `.env.example`
+3. Deploy — Next.js 16 is fully supported
+
+## License
+
+Private project.

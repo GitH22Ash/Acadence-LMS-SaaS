@@ -1,10 +1,3 @@
-// type User = {
-//   name: string;
-//   email: string;
-//   image?: string;
-//   accountId: string;
-// };
-
 enum Subject {
   maths = "maths",
   language = "language",
@@ -17,14 +10,18 @@ enum Subject {
   business = "business",
 }
 
-type Companion = Models.DocumentList<Models.Document> & {
-  $id: string;
+interface Companion {
+  id: string;
   name: string;
   subject: Subject;
   topic: string;
   duration: number;
   bookmarked: boolean;
-};
+  voice: string;
+  style: string;
+  author: string;
+  created_at?: string;
+}
 
 interface CreateCompanion {
   name: string;
@@ -42,27 +39,8 @@ interface GetAllCompanions {
   topic?: string | string[];
 }
 
-interface BuildClient {
-  key?: string;
-  sessionToken?: string;
-}
-
-interface CreateUser {
-  email: string;
-  name: string;
-  image?: string;
-  accountId: string;
-}
-
 interface SearchParams {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}
-
-interface Avatar {
-  userName: string;
-  width: number;
-  height: number;
-  className?: string;
 }
 
 interface SavedMessage {

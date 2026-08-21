@@ -1,9 +1,10 @@
 "use client";
-import { removeBookmark } from "@/lib/actions/companion.actions";
-import { addBookmark } from "@/lib/actions/companion.actions";
+
+import { removeBookmark, addBookmark } from "@/lib/actions/companion.actions";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Bookmark, Clock, ArrowRight } from "lucide-react";
 
 interface CompanionCardProps {
   id: string;
@@ -25,6 +26,7 @@ const CompanionCard = ({
   bookmarked,
 }: CompanionCardProps) => {
   const pathname = usePathname();
+
   const handleBookmark = async () => {
     if (bookmarked) {
       await removeBookmark(id, pathname);
@@ -32,39 +34,59 @@ const CompanionCard = ({
       await addBookmark(id, pathname);
     }
   };
+
   return (
-    <article className="companion-card" style={{ backgroundColor: color }}>
+    <article className="companion-card group">
+      {/* Header: subject badge + bookmark */}
       <div className="flex justify-between items-center">
-        <div className="subject-badge">{subject}</div>
-        <button className="companion-bookmark" onClick={handleBookmark}>
-          <Image
-            src={
-              bookmarked ? "/icons/bookmark-filled.svg" : "/icons/bookmark.svg"
-            }
-            alt="bookmark"
-            width={12.5}
-            height={15}
+        <div
+          className="subject-badge"
+          style={{ backgroundColor: `${color}20`, color: color ? undefined : undefined }}
+        >
+          <span className="flex items-center gap-1.5">
+            <Image
+              src={`/icons/${subject}.svg`}
+              alt=""
+              width={14}
+              height={14}
+              aria-hidden
+            />
+            {subject}
+          </span>
+        </div>
+        <button
+          className="companion-bookmark"
+          onClick={handleBookmark}
+          aria-label={bookmarked ? `Remove ${name} from bookmarks` : `Bookmark ${name}`}
+        >
+          <Bookmark
+            className={`size-4 transition-colors ${
+              bookmarked ? "fill-primary text-primary" : "text-muted-foreground"
+            }`}
+            strokeWidth={1.8}
           />
         </button>
       </div>
 
-      <h2 className="text-2xl font-bold">{name}</h2>
-      <p className="text-sm">{topic}</p>
-      <div className="flex items-center gap-2">
-        <Image
-          src="/icons/clock.svg"
-          alt="duration"
-          width={13.5}
-          height={13.5}
-        />
-        <p className="text-sm">{duration} minutes</p>
+      {/* Content */}
+      <div className="flex-1 flex flex-col gap-1.5">
+        <h3 className="text-xl font-bold tracking-tight">{name}</h3>
+        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">{topic}</p>
       </div>
 
-      <Link href={`/companions/${id}`} className="w-full">
-        <button className="btn-primary w-full justify-center">
-          Launch Lesson
-        </button>
-      </Link>
+      {/* Footer: duration + CTA */}
+      <div className="flex items-center justify-between pt-2 border-t border-border/50">
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <Clock className="size-3.5" strokeWidth={1.8} />
+          <span className="text-sm">{duration} min</span>
+        </div>
+        <Link href={`/companions/${id}`}>
+          <span className="btn-primary text-sm py-2 px-4 group-hover:gap-3 transition-all">
+            Launch
+            <ArrowRight className="size-3.5" strokeWidth={2} />
+          </span>
+        </Link>
+      </div>
     </article>
   );
 };
