@@ -6,35 +6,6 @@ import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { MobileNav } from "@/components/shared/MobileNav";
 
 const Navbar = () => {
-<<<<<<< HEAD
-    return (
-        <nav className="navbar">
-            <Link href="/">
-                <div className="flex items-center gap-2.5 cursor-pointer">
-                    <Image
-                        src="/images/logo.png"
-                        alt="logo"
-                        width={46}
-                        height={44}
-                    />
-                    <h1 className="navbar-title">Acadence</h1>
-                </div>
-            </Link>
-            <div className="flex items-center gap-8">
-                <NavItems />
-                <SignedOut>
-                    <SignInButton>
-                        <button className="btn-signin">Sign In</button>
-                    </SignInButton>
-                </SignedOut>
-                <SignedIn>
-                    <UserButton />
-                </SignedIn>
-            </div>
-        </nav>
-    )
-}
-=======
   return (
     <nav className="navbar" aria-label="Main navigation">
       <Link href="/" className="flex items-center gap-2.5">
@@ -43,6 +14,7 @@ const Navbar = () => {
           alt="Acadence"
           width={36}
           height={34}
+          style={{ width: "auto", height: "auto" }}
           className="rounded-lg"
           priority
         />
@@ -50,7 +22,6 @@ const Navbar = () => {
           Acadence
         </span>
       </Link>
->>>>>>> d03735e (CHANGE: Major UI/UX changes UPGRADE: upragraded to next js version 16)
 
       {/* Desktop navigation */}
       <div className="hidden md:flex items-center gap-6">

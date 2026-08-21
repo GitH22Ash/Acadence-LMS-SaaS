@@ -3,17 +3,11 @@ export const dynamic = "force-dynamic";
 import CompanionCard from "@/components/CompanionCard";
 import CompanionsList from "@/components/CompanionsList";
 import CTA from "@/components/CTA";
-<<<<<<< HEAD
-// import {recentSessions} from "@/constants";
-import {getAllCompanions, getRecentSessions} from "@/lib/actions/companion.actions";
-import {getSubjectColor} from "@/lib/utils";
-=======
 import { getAllCompanions, getRecentSessions } from "@/lib/actions/companion.actions";
 import { getSubjectColor } from "@/lib/utils";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { GraduationCap, Sparkles } from "lucide-react";
 import Link from "next/link";
->>>>>>> d03735e (CHANGE: Major UI/UX changes UPGRADE: upragraded to next js version 16)
 
 const Page = async () => {
   const companions = await getAllCompanions({ limit: 3 });

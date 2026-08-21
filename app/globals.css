@@ -220,7 +220,7 @@
   }
 
   .companion-card {
-    @apply flex flex-col rounded-4xl border border-black px-4 py-4 gap-5 w-full min-lg:max-w-[410px] justify-between;
+    @apply flex flex-col rounded-2xl border border-border bg-card px-5 py-5 gap-4 transition-all duration-200 hover:shadow-md hover:border-border/80 hover:-translate-y-0.5;
   }
 
   .subject-badge {
@@ -233,7 +233,7 @@
 
   /* --- Inputs --- */
   .input {
-    @apply !border-border !bg-background focus-visible: !ring-1 focus-visible: !ring-ring focus-visible: !border-border !w-full;
+    @apply !border-border !bg-background focus-visible:!ring-1 focus-visible:!ring-ring focus-visible:!border-border !w-full;
   }
 
   .rounded-border {
@@ -254,8 +254,9 @@
     @apply bg-primary text-primary-foreground rounded-xl cursor-pointer px-5 py-2.5 flex items-center justify-center gap-2 font-medium transition-all hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring;
   }
 
+  /* --- Navbar --- */
   .navbar {
-    @apply flex items-center justify-between mx-auto w-full px-14 py-4 bg-white max-sm:px-4;
+    @apply sticky top-0 z-50 flex items-center justify-between mx-auto w-full px-6 sm:px-8 lg:px-12 py-3 bg-background/80 backdrop-blur-xl border-b border-border/50 transition-colors;
   }
 
   .btn-signin {
@@ -271,28 +272,38 @@
     @apply items-center justify-center flex flex-col gap-5 w-full max-w-lg mx-auto pt-12 text-center;
   }
 
-  .companion-section {
-    @apply border-2 border-orange-500 w-2/3 max-sm:w-full flex flex-col gap-4 justify-center items-center rounded-lg;
+  /* --- Companion Session (Redesigned) --- */
+  .session-layout {
+    @apply flex flex-col items-center justify-between w-full h-[calc(100vh-100px)] max-h-[900px] gap-6;
+  }
+
+  .session-identity {
+    @apply flex flex-col items-center justify-center gap-2 pt-2;
   }
 
   .companion-avatar {
-    @apply size-[300px] flex items-center justify-center rounded-lg max-sm:size-[100px] mt-4;
+    @apply relative size-[80px] sm:size-[100px] lg:size-[120px] flex items-center justify-center rounded-2xl transition-all;
   }
 
   .companion-lottie {
-    @apply size-[300px] max-sm:size-[100px];
+    @apply size-[80px] sm:size-[100px] lg:size-[120px];
   }
 
-  .user-section {
-    @apply flex flex-col gap-4 w-1/3 max-sm:w-full max-sm:flex-row;
+  .session-status {
+    @apply text-sm font-medium text-muted-foreground flex items-center gap-1.5 h-5;
   }
 
-  .user-avatar {
-    @apply border-2 border-black flex flex-col gap-4 items-center rounded-lg py-8 max-sm:hidden;
+  /* --- Transcript --- */
+  .transcript-container {
+    @apply flex-1 w-full max-w-3xl mx-auto relative flex flex-col bg-card border border-border rounded-3xl shadow-sm overflow-hidden;
   }
 
-  .btn-mic {
-    @apply border-2 border-black rounded-lg flex flex-col gap-2 items-center py-8 max-sm:py-2 cursor-pointer w-full;
+  .transcript-scroll {
+    @apply overflow-y-auto w-full h-full p-6 sm:p-8 flex flex-col gap-6;
+  }
+
+  .transcript-fade-top {
+    @apply pointer-events-none absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-card to-transparent z-10;
   }
 
   .transcript-fade-bottom {
@@ -310,7 +321,7 @@
   .msg-content {
     @apply text-lg sm:text-xl lg:text-2xl font-medium leading-relaxed transition-all duration-300;
   }
-
+  
   .msg-content.subdued {
     @apply text-muted-foreground text-base sm:text-lg;
   }
@@ -318,7 +329,6 @@
   .msg-ai {
     @apply items-start text-left;
   }
-
   .msg-user {
     @apply items-end text-right;
   }
@@ -356,5 +366,18 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+}
+
+/* ============================================================================
+   REDUCED MOTION — Respect user preference
+   ============================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
