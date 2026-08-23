@@ -14,7 +14,6 @@ const Navbar = () => {
           alt="Acadence"
           width={36}
           height={34}
-          style={{ width: "auto", height: "auto" }}
           className="rounded-lg"
           priority
         />

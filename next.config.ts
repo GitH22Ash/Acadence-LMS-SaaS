@@ -20,8 +20,11 @@ export default withSentryConfig(nextConfig, {
   widenClientFileUpload: true,
 
   // Automatically tree-shake Sentry logger statements to reduce bundle size
-  disableLogger: true,
-
-  // Enables automatic instrumentation of Vercel Cron Monitors.
-  automaticVercelMonitors: true,
+  // (webpack-only; no-op under Turbopack but avoids deprecation warning)
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+    automaticVercelMonitors: true,
+  },
 });
