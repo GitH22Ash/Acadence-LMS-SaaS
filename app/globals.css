@@ -273,8 +273,13 @@
   }
 
   /* --- Companion Session (Redesigned) --- */
+  .session-page {
+    @apply h-[100dvh] w-full overflow-hidden; /* Single viewport, no page scroll */
+  }
+
   .session-layout {
-    @apply flex flex-col items-center justify-between w-full h-[calc(100vh-100px)] max-h-[900px] gap-6;
+    /* Account for navbar height in the calculation */
+    @apply flex flex-col items-center justify-between w-full h-[calc(100dvh-80px)] gap-4 px-4 sm:px-8 pb-4;
   }
 
   .session-identity {
@@ -319,11 +324,18 @@
   }
 
   .msg-content {
-    @apply text-lg sm:text-xl lg:text-2xl font-medium leading-relaxed transition-all duration-300;
+    /* One consistent typography size for both live and history to prevent jumping */
+    @apply text-[21px] sm:text-[24px] lg:text-[28px] font-medium leading-relaxed transition-all duration-300;
   }
   
+  .msg-live {
+    /* Prominent active caption color */
+    @apply text-foreground;
+  }
+
   .msg-content.subdued {
-    @apply text-muted-foreground text-base sm:text-lg;
+    /* Historical messages transition color/opacity, NEVER font-size */
+    @apply text-muted-foreground opacity-60;
   }
 
   .msg-ai {
