@@ -1,19 +1,37 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { cn, configureAssistant, getSubjectColor } from "@/lib/utils";
 import { getVapiClient } from "@/lib/vapi-client.sdk";
 import Image from "next/image";
 import Lottie, { LottieRefCurrentProps } from "lottie-react";
 import soundwaves from "@/constants/soundwaves.json";
 import { addToSessionHistory } from "@/lib/actions/companion.actions";
-import { Mic, MicOff, Phone, PhoneOff, Pause, Play, Loader2 } from "lucide-react";
+import { Mic, MicOff, Phone, PhoneOff, Pause, Play, Loader2, ChevronDown } from "lucide-react";
 
 enum CallStatus {
   INACTIVE = "INACTIVE",
   CONNECTING = "CONNECTING",
   ACTIVE = "ACTIVE",
   FINISHED = "FINISHED",
+}
+
+/** A committed message in the conversation history */
+interface HistoryMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
+/** The current live (partial) transcript being spoken */
+interface LiveMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+let messageIdCounter = 0;
+function nextMessageId(): string {
+  return `msg-${Date.now()}-${++messageIdCounter}`;
 }
 
 const CompanionComponent = ({
@@ -26,17 +44,31 @@ const CompanionComponent = ({
   style,
   voice,
 }: CompanionComponentProps) => {
+  // === Call State ===
   const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [messages, setMessages] = useState<SavedMessage[]>([]);
-  
+
+  // === Transcript State ===
+  const [conversationHistory, setConversationHistory] = useState<HistoryMessage[]>([]);
+  const [liveMessage, setLiveMessage] = useState<LiveMessage | null>(null);
+
+  // === Refs ===
   const lottieRef = useRef<LottieRefCurrentProps>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
 
-  // Lottie animation handling
+  // Use refs for values needed inside event handlers to avoid stale closures
+  const liveMessageRef = useRef<LiveMessage | null>(null);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    liveMessageRef.current = liveMessage;
+  }, [liveMessage]);
+
+  // === Lottie animation handling ===
   useEffect(() => {
     if (lottieRef.current) {
       if (isSpeaking && !isPaused && callStatus === CallStatus.ACTIVE) {
@@ -47,7 +79,7 @@ const CompanionComponent = ({
     }
   }, [isSpeaking, isPaused, callStatus]);
 
-  // Vapi Event Listeners
+  // === Vapi Event Listeners ===
   useEffect(() => {
     const vapi = getVapiClient();
     if (!vapi) return;
@@ -55,21 +87,69 @@ const CompanionComponent = ({
     const onCallStart = () => setCallStatus(CallStatus.ACTIVE);
 
     const onCallEnd = () => {
+      // Commit any remaining live message before ending
+      setLiveMessage((currentLive) => {
+        if (currentLive && currentLive.content.trim()) {
+          setConversationHistory((prev) => [
+            ...prev,
+            { id: nextMessageId(), role: currentLive.role, content: currentLive.content },
+          ]);
+        }
+        return null;
+      });
       setCallStatus(CallStatus.FINISHED);
       addToSessionHistory(companionId);
       setIsPaused(false);
       setIsMuted(false);
+      setIsSpeaking(false);
     };
 
-    const onMessage = (message: Message) => {
-      if (
-        message.type === "transcript" &&
-        message.transcriptType === "final"
-      ) {
-        setMessages((prev) => [
-          ...prev, 
-          { role: message.role, content: message.transcript }
-        ]);
+    const onMessage = (message: any) => {
+      if (message.type === "transcript") {
+        const role = message.role as "user" | "assistant";
+        const content = message.transcript as string;
+
+        if (message.transcriptType === "partial") {
+          // Update the live message in-place
+          setLiveMessage((prev) => {
+            // If role changed (e.g. user interrupted assistant), commit the old message first
+            if (prev && prev.role !== role && prev.content.trim()) {
+              setConversationHistory((history) => [
+                ...history,
+                { id: nextMessageId(), role: prev.role, content: prev.content },
+              ]);
+            }
+            // If same role, update in-place. If different role, start fresh.
+            if (prev && prev.role === role) {
+              return { role, content };
+            }
+            return { role, content };
+          });
+        } else if (message.transcriptType === "final") {
+          // Commit the final transcript to history
+          if (content.trim()) {
+            setConversationHistory((prev) => [
+              ...prev,
+              { id: nextMessageId(), role, content },
+            ]);
+          }
+          // Clear live message only if it's the same role
+          setLiveMessage((prev) => {
+            if (prev && prev.role === role) {
+              return null;
+            }
+            return prev;
+          });
+        }
+      }
+
+      // Handle speech-update messages for more accurate speaking state
+      if (message.type === "speech-update") {
+        if (message.status === "started") {
+          setIsSpeaking(true);
+        } else if (message.status === "stopped") {
+          setIsSpeaking(false);
+        }
       }
     };
 
@@ -79,6 +159,7 @@ const CompanionComponent = ({
       console.error("Vapi error:", error);
       setCallStatus(CallStatus.INACTIVE);
       setIsPaused(false);
+      setLiveMessage(null);
     };
 
     vapi.on("call-start", onCallStart);
@@ -98,25 +179,33 @@ const CompanionComponent = ({
     };
   }, [companionId]);
 
-  // Auto-scroll mechanism
+  // === Auto-scroll — triggered on both history and live message changes ===
   useEffect(() => {
     if (autoScroll && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, autoScroll]);
+  }, [conversationHistory, liveMessage, autoScroll]);
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     if (!scrollRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-    // If we scroll up, disable auto-scroll. If we hit the bottom, enable it.
-    const isNearBottom = scrollHeight - scrollTop - clientHeight < 50;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 60;
     setAutoScroll(isNearBottom);
-  };
+    setShowJumpToLatest(!isNearBottom);
+  }, []);
 
+  const jumpToLatest = useCallback(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+      setAutoScroll(true);
+      setShowJumpToLatest(false);
+    }
+  }, []);
+
+  // === Controls ===
   const toggleMicrophone = () => {
     const vapi = getVapiClient();
     if (!vapi) return;
-    
     const newMutedState = !isMuted;
     vapi.setMuted(newMutedState);
     setIsMuted(newMutedState);
@@ -125,15 +214,12 @@ const CompanionComponent = ({
   const togglePause = () => {
     const vapi = getVapiClient();
     if (!vapi) return;
-    
     if (!isPaused) {
-      // Pause: Mute assistant and mute user
       vapi.send({ type: "control", control: "mute-assistant" });
       vapi.setMuted(true);
       setIsPaused(true);
-      setIsMuted(true); // Update local state for mic UI
+      setIsMuted(true);
     } else {
-      // Resume: Unmute assistant and unmute user
       vapi.send({ type: "control", control: "unmute-assistant" });
       vapi.setMuted(false);
       setIsPaused(false);
@@ -148,15 +234,16 @@ const CompanionComponent = ({
     setCallStatus(CallStatus.CONNECTING);
     setIsPaused(false);
     setIsMuted(false);
-    setMessages([]); // clear history on new call
+    setConversationHistory([]);
+    setLiveMessage(null);
 
     const assistantOverrides = {
       variableValues: { subject, topic, style },
-      clientMessages: ["transcript"],
+      clientMessages: ["transcript", "speech-update"],
       serverMessages: [],
     };
 
-    // @ts-expect-error — Vapi SDK type mismatch
+    // @ts-expect-error — Vapi SDK type mismatch with overrides
     vapi.start(configureAssistant(voice, style), assistantOverrides);
   };
 
@@ -169,13 +256,15 @@ const CompanionComponent = ({
 
   const companionFirstName = name.split(" ")[0].replace(/[.,]/g, "");
 
-  // Determine current active status text
+  // === Determine current status ===
   let statusText = "Ready to start";
   if (callStatus === CallStatus.CONNECTING) statusText = "Connecting...";
   if (callStatus === CallStatus.FINISHED) statusText = "Session ended";
   if (callStatus === CallStatus.ACTIVE) {
     if (isPaused) statusText = "Paused";
-    else if (isSpeaking) statusText = "Lingo is speaking...";
+    else if (liveMessage?.role === "assistant") statusText = "Speaking...";
+    else if (liveMessage?.role === "user") statusText = "Listening...";
+    else if (isSpeaking) statusText = "Speaking...";
     else statusText = "Listening...";
   }
 
@@ -238,42 +327,86 @@ const CompanionComponent = ({
           ref={scrollRef}
           onScroll={handleScroll}
         >
-          {messages.length === 0 && callStatus !== CallStatus.CONNECTING && callStatus !== CallStatus.ACTIVE && (
+          {/* Empty state */}
+          {conversationHistory.length === 0 && !liveMessage && callStatus !== CallStatus.CONNECTING && callStatus !== CallStatus.ACTIVE && (
              <div className="flex-1 flex items-center justify-center text-muted-foreground text-center">
-               Press "Start Session" to begin learning.
+               Press &quot;Start Session&quot; to begin learning.
+             </div>
+          )}
+
+          {/* Active but waiting for first message */}
+          {conversationHistory.length === 0 && !liveMessage && (callStatus === CallStatus.CONNECTING || callStatus === CallStatus.ACTIVE) && (
+             <div className="flex-1 flex items-center justify-center text-muted-foreground text-center">
+               <Loader2 className="size-5 animate-spin mr-2" />
+               {callStatus === CallStatus.CONNECTING ? "Connecting to session..." : "Waiting for Lingo to speak..."}
              </div>
           )}
           
-          {messages.map((message, index) => {
-            const isLastMessage = index === messages.length - 1;
+          {/* Committed conversation history */}
+          {conversationHistory.map((message, index) => {
             const isAI = message.role === "assistant";
+            // Keep the last message visually bright if no new message has started
+            const isCurrentActive = index === conversationHistory.length - 1 && !liveMessage;
             
             return (
               <div 
-                key={index} 
+                key={message.id} 
                 className={cn("msg-row", isAI ? "msg-ai" : "msg-user")}
               >
                 <span className="msg-label">
                   {isAI ? companionFirstName : userName}
                 </span>
-                <p
-                  className={cn(
-                    "msg-content",
-                    isAI ? "text-foreground" : "text-primary",
-                    !isLastMessage && "subdued"
-                  )}
-                >
+                <p className={cn(
+                  "msg-content",
+                  isCurrentActive ? "msg-live" : "subdued",
+                  isCurrentActive && isAI ? "text-foreground" : "",
+                  isCurrentActive && !isAI ? "text-primary" : ""
+                )}>
                   {message.content}
                 </p>
               </div>
             );
           })}
+
+          {/* Live message — the current caption */}
+          {liveMessage && (
+            <div 
+              className={cn(
+                "msg-row",
+                liveMessage.role === "assistant" ? "msg-ai" : "msg-user"
+              )}
+              aria-live="polite"
+              aria-atomic="false"
+            >
+              <span className="msg-label">
+                {liveMessage.role === "assistant" ? companionFirstName : userName}
+              </span>
+              <p className={cn(
+                "msg-content msg-live",
+                liveMessage.role === "assistant" ? "text-foreground" : "text-primary"
+              )}>
+                {liveMessage.content}
+              </p>
+            </div>
+          )}
           
-          {/* Invisible spacer to ensure we can scroll past the bottom fade */}
+          {/* Spacer for bottom fade */}
           <div className="h-4" />
         </div>
 
         <div className="transcript-fade-bottom" />
+
+        {/* Jump to latest button */}
+        {showJumpToLatest && (
+          <button 
+            className="absolute bottom-14 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary text-primary-foreground text-xs font-medium shadow-lg transition-all hover:bg-primary-hover"
+            onClick={jumpToLatest}
+            aria-label="Jump to latest message"
+          >
+            <ChevronDown className="size-3.5" strokeWidth={2} />
+            New message
+          </button>
+        )}
 
         {/* Pause Overlay */}
         {isPaused && (
@@ -281,7 +414,7 @@ const CompanionComponent = ({
             <Pause className="size-10 text-foreground opacity-50" strokeWidth={1.5} />
             <h3 className="text-xl font-bold">Conversation paused</h3>
             <p className="text-muted-foreground max-w-xs">
-              Take your time. Resume when you're ready to continue learning.
+              Take your time. Resume when you&apos;re ready to continue learning.
             </p>
           </div>
         )}
