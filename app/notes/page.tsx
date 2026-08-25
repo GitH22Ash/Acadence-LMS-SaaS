@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { BookOpen, Sparkles } from "lucide-react";
 
 interface NotesPageProps {
+  params: Promise<{ [key: string]: string | undefined }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 

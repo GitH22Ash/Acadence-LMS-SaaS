@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
+import { revalidatePath } from "next/cache";
 import { createSupabaseClient } from "@/lib/supabase";
 import { generateLearningNotes } from "@/lib/ai/generate-notes";
 import {
@@ -263,6 +264,10 @@ async function triggerNoteGeneration(sessionId: string, userId: string) {
     .eq("id", sessionId);
 
   console.log("[learning] Notes generated successfully for session:", sessionId);
+  
+  // Clear Next.js cache so the UI updates
+  revalidatePath("/notes");
+  revalidatePath(`/notes/${sessionId}`);
 }
 
 // ---------------------------------------------------------------------------

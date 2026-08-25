@@ -5,6 +5,7 @@ import NoteDetail from "@/components/NoteDetail";
 
 interface NoteDetailPageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 const NoteDetailPage = async ({ params }: NoteDetailPageProps) => {
