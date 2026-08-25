@@ -17,7 +17,7 @@ An AI-powered learning platform where students learn through natural voice conve
 
 ## Live Demo
 
-[Visit Acadence](YOUR_DEPLOYED_URL)
+[Visit Acadence](https://acadence-lms-saa-s.vercel.app/)
 
 ## Overview
 
@@ -258,9 +258,13 @@ The project is optimized for deployment on Vercel:
 4. Run `npm run typecheck` and `npm run build` to verify
 5. Open a pull request
 
+## Acknowledgments
+
+- Special thanks to Adrian from [JS Mastery](https://www.jsmastery.pro/) for the inspiration and foundational learning resources.
+
 ## License
 
-License information has not yet been specified.
+This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
 
 ## Author
 
