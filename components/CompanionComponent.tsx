@@ -7,6 +7,11 @@ import Image from "next/image";
 import Lottie, { LottieRefCurrentProps } from "lottie-react";
 import soundwaves from "@/constants/soundwaves.json";
 import { addToSessionHistory } from "@/lib/actions/companion.actions";
+import {
+  createLearningSession,
+  updateSessionCallId,
+  persistConversation,
+} from "@/lib/actions/learning.actions";
 import { Mic, MicOff, Phone, PhoneOff, Pause, Play, Loader2, ChevronDown } from "lucide-react";
 
 enum CallStatus {
@@ -54,6 +59,11 @@ const CompanionComponent = ({
   const [conversationHistory, setConversationHistory] = useState<HistoryMessage[]>([]);
   const [liveMessage, setLiveMessage] = useState<LiveMessage | null>(null);
 
+  // === Learning Session Tracking ===
+  const learningSessionIdRef = useRef<string | null>(null);
+  const vapiCallIdRef = useRef<string | null>(null);
+  const callStartTimeRef = useRef<number | null>(null);
+
   // === Refs ===
   const lottieRef = useRef<LottieRefCurrentProps>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -86,6 +96,19 @@ const CompanionComponent = ({
 
     const onCallStart = () => setCallStatus(CallStatus.ACTIVE);
 
+    const onCallStartSuccess = (event: any) => {
+      // Capture the Vapi call ID for session association
+      if (event?.callId) {
+        vapiCallIdRef.current = event.callId;
+        const sessionId = learningSessionIdRef.current;
+        if (sessionId) {
+          updateSessionCallId(sessionId, event.callId).catch((err) =>
+            console.error("Failed to update call ID:", err)
+          );
+        }
+      }
+    };
+
     const onCallEnd = () => {
       // Commit any remaining live message before ending
       setLiveMessage((currentLive) => {
@@ -99,6 +122,37 @@ const CompanionComponent = ({
       });
       setCallStatus(CallStatus.FINISHED);
       addToSessionHistory(companionId);
+
+      // === Persist finalized conversation ===
+      // Use setTimeout to allow the final setConversationHistory to flush
+      setTimeout(() => {
+        const sessionId = learningSessionIdRef.current;
+        if (!sessionId) return;
+
+        // Access the latest conversationHistory from the DOM closure
+        setConversationHistory((currentHistory) => {
+          if (currentHistory.length > 0) {
+            const durationSeconds = callStartTimeRef.current
+              ? Math.round((Date.now() - callStartTimeRef.current) / 1000)
+              : undefined;
+
+            persistConversation({
+              sessionId,
+              messages: currentHistory.map((msg, idx) => ({
+                role: msg.role,
+                content: msg.content,
+                sequenceNumber: idx,
+              })),
+              vapiCallId: vapiCallIdRef.current || undefined,
+              durationSeconds,
+            }).catch((err) =>
+              console.error("Failed to persist conversation:", err)
+            );
+          }
+          return currentHistory; // Don't modify the state
+        });
+      }, 100);
+
       setIsPaused(false);
       setIsMuted(false);
       setIsSpeaking(false);
@@ -163,6 +217,7 @@ const CompanionComponent = ({
     };
 
     vapi.on("call-start", onCallStart);
+    vapi.on("call-start-success", onCallStartSuccess);
     vapi.on("call-end", onCallEnd);
     vapi.on("message", onMessage);
     vapi.on("error", onError);
@@ -171,6 +226,7 @@ const CompanionComponent = ({
 
     return () => {
       vapi.off("call-start", onCallStart);
+      vapi.off("call-start-success", onCallStartSuccess);
       vapi.off("call-end", onCallEnd);
       vapi.off("message", onMessage);
       vapi.off("error", onError);
@@ -236,6 +292,23 @@ const CompanionComponent = ({
     setIsMuted(false);
     setConversationHistory([]);
     setLiveMessage(null);
+    learningSessionIdRef.current = null;
+    vapiCallIdRef.current = null;
+    callStartTimeRef.current = Date.now();
+
+    // Create a learning session record before starting the call
+    try {
+      const { sessionId } = await createLearningSession({
+        companionId,
+        subject,
+        topic,
+        title: `${name} — ${topic || subject}`,
+      });
+      learningSessionIdRef.current = sessionId;
+    } catch (err) {
+      console.error("Failed to create learning session:", err);
+      // Continue with the call even if session creation fails
+    }
 
     const assistantOverrides = {
       variableValues: { subject, topic, style },

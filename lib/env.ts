@@ -6,6 +6,7 @@ import { z } from "zod";
  */
 const serverSchema = z.object({
   CLERK_SECRET_KEY: z.string().min(1, "CLERK_SECRET_KEY is required"),
+  GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1, "GOOGLE_GENERATIVE_AI_API_KEY is required"),
   SENTRY_ORG: z.string().optional(),
   SENTRY_PROJECT: z.string().optional(),
   SENTRY_AUTH_TOKEN: z.string().optional(),
