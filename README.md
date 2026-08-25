@@ -13,7 +13,6 @@ An AI-powered learning platform where students learn through natural voice conve
 ![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
 
 ![Acadence Dashboard](./docs/screenshots/dashboard.png)
-*(Note: Add screenshots in `docs/screenshots/`)*
 
 ## Live Demo
 
