@@ -365,6 +365,88 @@
   .btn-end {
     @apply w-full rounded-2xl py-3.5 cursor-pointer transition-all font-medium flex items-center justify-center gap-2;
   }
+
+  /* --- Learning Notes --- */
+  .notes-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 w-full;
+  }
+
+  .note-card {
+    @apply flex flex-col rounded-2xl border border-border bg-card px-5 py-5 gap-4 transition-all duration-200 hover:shadow-md hover:border-border/80 hover:-translate-y-0.5;
+  }
+
+  .note-badge {
+    @apply flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium tracking-wide;
+  }
+  .note-badge.generating {
+    @apply bg-primary/10 text-primary border border-primary/20;
+  }
+  .note-badge.failed {
+    @apply bg-destructive/10 text-destructive border border-destructive/20;
+  }
+  .note-badge.pending {
+    @apply bg-warning/10 text-warning border border-warning/20;
+  }
+
+  .note-detail-layout {
+    @apply flex flex-col w-full max-w-3xl mx-auto gap-8 pt-4 pb-12;
+  }
+
+  .note-detail-header {
+    @apply flex flex-col gap-3 pb-6 border-b border-border;
+  }
+
+  .note-detail-badge {
+    @apply bg-secondary text-secondary-foreground rounded-full text-xs font-medium px-3 py-1 capitalize tracking-wide;
+  }
+
+  .note-section {
+    @apply flex flex-col gap-4;
+  }
+
+  .note-section-header {
+    @apply flex items-center gap-2 mb-2;
+  }
+
+  .note-list {
+    @apply flex flex-col gap-3 pl-1;
+  }
+
+  .note-list-item {
+    @apply flex gap-3 items-start text-foreground/90 leading-relaxed;
+  }
+
+  .note-list-number {
+    @apply flex items-center justify-center size-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5;
+  }
+
+  .note-list-bullet {
+    @apply size-2 rounded-full bg-primary shrink-0 mt-2;
+  }
+  .note-list-bullet.question {
+    @apply bg-warning;
+  }
+
+  .note-example {
+    @apply p-4 rounded-xl bg-secondary/50 border border-border/50 text-foreground/90 italic;
+  }
+
+  .note-misconception {
+    @apply p-4 rounded-xl bg-destructive/5 border border-destructive/10 text-foreground/90;
+  }
+
+  .note-status-icon {
+    @apply flex size-16 items-center justify-center rounded-2xl mb-2;
+  }
+  .note-status-icon.generating {
+    @apply bg-primary/10;
+  }
+  .note-status-icon.failed {
+    @apply bg-destructive/10;
+  }
+  .note-status-icon.pending {
+    @apply bg-warning/10;
+  }
 }
 
 /* ============================================================================
