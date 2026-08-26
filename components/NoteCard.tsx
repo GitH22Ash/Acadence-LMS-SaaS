@@ -2,14 +2,23 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Clock, Loader2 } from "lucide-react";
+import { ArrowRight, Clock, Loader2, MoreVertical, Trash2 } from "lucide-react";
 import { getSubjectColor } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { DeleteNoteDialog } from "@/components/DeleteNoteDialog";
+import { useState } from "react";
 
 interface NoteCardProps {
   note: LearningNoteCard;
 }
 
 const NoteCard = ({ note }: NoteCardProps) => {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const color = getSubjectColor(note.subject || "");
   const isGenerating = note.notes_status === "generating";
   const isFailed = note.notes_status === "failed";
@@ -52,6 +61,37 @@ const NoteCard = ({ note }: NoteCardProps) => {
             Generating
           </span>
         )}
+        {isReady && (
+          <span className="note-badge completed">
+            <span
+              className="size-1.5 rounded-full"
+              style={{ backgroundColor: color }}
+            />
+            Completed
+          </span>
+        )}
+        
+        {/* Actions Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="p-1 rounded-md text-muted-foreground hover:bg-muted focus:outline-none transition-colors">
+              <MoreVertical className="size-4" />
+              <span className="sr-only">Open menu</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteDialog(true);
+              }}
+            >
+              <Trash2 className="mr-2 size-4" />
+              Delete Note
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {isFailed && (
           <span className="note-badge failed">
             Retry needed
@@ -118,6 +158,13 @@ const NoteCard = ({ note }: NoteCardProps) => {
           </span>
         </Link>
       </div>
+      
+      <DeleteNoteDialog
+        isOpen={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        noteId={note.id}
+        noteTitle={note.title || undefined}
+      />
     </article>
   );
 };

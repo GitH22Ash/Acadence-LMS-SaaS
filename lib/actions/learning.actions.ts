@@ -340,25 +340,37 @@ export async function getUserNotes(search?: string): Promise<LearningNoteCard[]>
 
   if (!sessions) return [];
 
-  // Transform into LearningNoteCard format
-  const cards: LearningNoteCard[] = sessions.map((session: any) => {
-    const note = Array.isArray(session.learning_notes)
-      ? session.learning_notes[0]
-      : session.learning_notes;
-    const companion = session.companions as any;
+  // Transform into LearningNoteCard format, filtering out completed sessions with deleted notes
+  const cards: LearningNoteCard[] = sessions
+    .filter((session: any) => {
+      const note = Array.isArray(session.learning_notes)
+        ? session.learning_notes[0]
+        : session.learning_notes;
+        
+      // If the note was deleted, it will have notes_status 'completed' but no note record
+      if (session.notes_status === "completed" && !note) {
+        return false;
+      }
+      return true;
+    })
+    .map((session: any) => {
+      const note = Array.isArray(session.learning_notes)
+        ? session.learning_notes[0]
+        : session.learning_notes;
+      const companion = session.companions as any;
 
-    return {
-      id: note?.id || session.id,
-      session_id: session.id,
-      title: note?.title || `${session.subject} Session`,
-      subject: note?.subject || session.subject,
-      summary: note?.summary || null,
-      key_concepts: note?.key_concepts || [],
-      created_at: note?.created_at || session.started_at,
-      companion_name: companion?.name || null,
-      notes_status: session.notes_status,
-    };
-  });
+      return {
+        id: note?.id || session.id,
+        session_id: session.id,
+        title: note?.title || `${session.subject} Session`,
+        subject: note?.subject || session.subject,
+        summary: note?.summary || null,
+        key_concepts: note?.key_concepts || [],
+        created_at: note?.created_at || session.started_at,
+        companion_name: companion?.name || null,
+        notes_status: session.notes_status,
+      };
+    });
 
   // Client-side search filter (for simple text search)
   if (search && search.trim()) {
@@ -456,4 +468,54 @@ export async function getSessionDetail(sessionId: string) {
     .single();
 
   return session || null;
+}
+
+// ---------------------------------------------------------------------------
+// AI Notes - Delete & Notifications
+// ---------------------------------------------------------------------------
+
+export async function deleteNote(noteId: string) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const supabase = createSupabaseClient();
+
+  // The delete operation is protected by RLS on learning_notes 
+  // (user_id = auth.jwt() ->> 'sub')
+  const { error } = await supabase
+    .from("learning_notes")
+    .delete()
+    .eq("id", noteId)
+    .eq("user_id", userId);
+
+  if (error) {
+    console.error("Failed to delete note:", error);
+    throw new Error("Failed to delete note");
+  }
+
+  // Clear caches
+  revalidatePath("/notes");
+  return { success: true };
+}
+
+export async function getNotesStatuses(sessionIds: string[]) {
+  if (!sessionIds || sessionIds.length === 0) return [];
+  
+  const { userId } = await auth();
+  if (!userId) return [];
+
+  const supabase = createSupabaseClient();
+
+  const { data, error } = await supabase
+    .from("learning_sessions")
+    .select("id, notes_status")
+    .in("id", sessionIds)
+    .eq("user_id", userId);
+
+  if (error) {
+    console.error("Failed to fetch note statuses:", error);
+    return [];
+  }
+
+  return data;
 }

@@ -12,6 +12,7 @@ import {
   updateSessionCallId,
   persistConversation,
 } from "@/lib/actions/learning.actions";
+import { addPendingNoteSession } from "@/components/NotesToastProvider";
 import { Mic, MicOff, Phone, PhoneOff, Pause, Play, Loader2, ChevronDown } from "lucide-react";
 
 enum CallStatus {
@@ -145,9 +146,13 @@ const CompanionComponent = ({
               })),
               vapiCallId: vapiCallIdRef.current || undefined,
               durationSeconds,
-            }).catch((err) =>
-              console.error("Failed to persist conversation:", err)
-            );
+            })
+              .then(() => {
+                addPendingNoteSession(sessionId);
+              })
+              .catch((err) =>
+                console.error("Failed to persist conversation:", err)
+              );
           }
           return currentHistory; // Don't modify the state
         });

@@ -4,6 +4,8 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
+import { Toaster } from "@/components/ui/sonner";
+import { NotesToastProvider } from "@/components/NotesToastProvider";
 
 const bricolage = Bricolage_Grotesque({
   variable: "--font-display",
@@ -48,6 +50,8 @@ export default function RootLayout({
             </a>
             <Navbar />
             <div id="main-content">{children}</div>
+            <Toaster position="bottom-right" richColors />
+            <NotesToastProvider />
           </ThemeProvider>
         </ClerkProvider>
       </body>

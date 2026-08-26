@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { DeleteNoteDialog } from "@/components/DeleteNoteDialog";
 import {
   ArrowLeft,
   BookOpen,
@@ -11,6 +14,7 @@ import {
   ArrowRight,
   GraduationCap,
   HelpCircle,
+  Trash2,
 } from "lucide-react";
 
 interface NoteDetailProps {
@@ -18,6 +22,8 @@ interface NoteDetailProps {
 }
 
 const NoteDetail = ({ note }: NoteDetailProps) => {
+  const router = useRouter();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const formattedDate = note.session_started_at
     ? new Date(note.session_started_at).toLocaleDateString("en-US", {
         weekday: "long",
@@ -33,14 +39,24 @@ const NoteDetail = ({ note }: NoteDetailProps) => {
 
   return (
     <div className="note-detail-layout">
-      {/* Back navigation */}
-      <Link
-        href="/notes"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-2"
-      >
-        <ArrowLeft className="size-4" strokeWidth={2} />
-        Back to My Notes
-      </Link>
+      {/* Navigation & Actions */}
+      <div className="flex justify-between items-center mb-2">
+        <Link
+          href="/notes"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="size-4" strokeWidth={2} />
+          Back to My Notes
+        </Link>
+        <button
+          onClick={() => setShowDeleteDialog(true)}
+          aria-label="Delete note"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-destructive hover:text-destructive/80 transition-colors bg-destructive/10 hover:bg-destructive/20 px-2.5 py-1.5 rounded-md"
+        >
+          <Trash2 className="size-4" strokeWidth={2} />
+          Delete
+        </button>
+      </div>
 
       {/* Header */}
       <header className="note-detail-header">
@@ -182,6 +198,14 @@ const NoteDetail = ({ note }: NoteDetailProps) => {
           </ul>
         </section>
       )}
+
+      <DeleteNoteDialog
+        isOpen={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        noteId={note.id}
+        noteTitle={note.title || undefined}
+        onSuccess={() => router.push("/notes")}
+      />
     </div>
   );
 };

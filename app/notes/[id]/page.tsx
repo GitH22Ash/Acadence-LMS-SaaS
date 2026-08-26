@@ -22,6 +22,11 @@ const NoteDetailPage = async ({ params }: NoteDetailPageProps) => {
     const session = await getSessionDetail(id);
     if (!session) redirect("/notes");
 
+    // If the note generation completed but no note exists, it was likely deleted
+    if (session.notes_status === "completed") {
+      redirect("/notes");
+    }
+
     const companion = session.companions as any;
 
     // Render a status page based on notes_status
