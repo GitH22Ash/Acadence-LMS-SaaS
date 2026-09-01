@@ -4,7 +4,21 @@ import { removeBookmark, addBookmark } from "@/lib/actions/companion.actions";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bookmark, Clock, ArrowRight } from "lucide-react";
+import {
+  Bookmark,
+  Clock,
+  ArrowRight,
+  MoreVertical,
+  Trash2,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { DeleteCompanionDialog } from "@/components/DeleteCompanionDialog";
+import { useState } from "react";
 
 interface CompanionCardProps {
   id: string;
@@ -26,6 +40,7 @@ const CompanionCard = ({
   bookmarked,
 }: CompanionCardProps) => {
   const pathname = usePathname();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const handleBookmark = async () => {
     if (bookmarked) {
@@ -37,11 +52,14 @@ const CompanionCard = ({
 
   return (
     <article className="companion-card group">
-      {/* Header: subject badge + bookmark */}
+      {/* Header: subject badge + actions */}
       <div className="flex justify-between items-center">
         <div
           className="subject-badge"
-          style={{ backgroundColor: `${color}20`, color: color ? undefined : undefined }}
+          style={{
+            backgroundColor: `${color}20`,
+            color: color ? undefined : undefined,
+          }}
         >
           <span className="flex items-center gap-1.5">
             <Image
@@ -55,24 +73,50 @@ const CompanionCard = ({
             {subject}
           </span>
         </div>
-        <button
-          className="companion-bookmark"
-          onClick={handleBookmark}
-          aria-label={bookmarked ? `Remove ${name} from bookmarks` : `Bookmark ${name}`}
-        >
-          <Bookmark
-            className={`size-4 transition-colors ${
-              bookmarked ? "fill-primary text-primary" : "text-muted-foreground"
-            }`}
-            strokeWidth={1.8}
-          />
-        </button>
+
+        {/* Actions menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="p-1 rounded-md text-muted-foreground hover:bg-muted focus:outline-none transition-colors">
+              <MoreVertical className="size-4" />
+              <span className="sr-only">Open menu</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleBookmark();
+              }}
+            >
+              <Bookmark
+                className={`mr-2 size-4 ${
+                  bookmarked ? "fill-primary text-primary" : ""
+                }`}
+              />
+              {bookmarked ? "Remove Bookmark" : "Bookmark"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteDialog(true);
+              }}
+            >
+              <Trash2 className="mr-2 size-4" />
+              Delete Companion
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Content */}
       <div className="flex-1 flex flex-col gap-1.5">
         <h3 className="text-xl font-bold tracking-tight">{name}</h3>
-        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">{topic}</p>
+        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
+          {topic}
+        </p>
       </div>
 
       {/* Footer: duration + CTA */}
@@ -88,6 +132,13 @@ const CompanionCard = ({
           </span>
         </Link>
       </div>
+
+      <DeleteCompanionDialog
+        isOpen={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        companionId={id}
+        companionName={name}
+      />
     </article>
   );
 };

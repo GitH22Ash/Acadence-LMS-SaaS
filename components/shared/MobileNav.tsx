@@ -11,6 +11,7 @@ const navItems = [
   { label: "Companions", href: "/companions" },
   { label: "My Journey", href: "/my-journey" },
   { label: "My Notes", href: "/notes" },
+  { label: "Practice", href: "/practice" },
 ];
 
 export function MobileNav() {
@@ -50,7 +51,7 @@ export function MobileNav() {
                   onClick={() => setIsOpen(false)}
                   className={cn(
                     "px-4 py-3 rounded-xl text-base font-medium transition-colors",
-                    pathname === href
+                    (href === "/" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`))
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                   )}
