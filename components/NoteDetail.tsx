@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DeleteNoteDialog } from "@/components/DeleteNoteDialog";
+import { GenerateFlashcardsButton } from "@/components/GenerateFlashcardsButton";
+import { GenerateQuizButton } from "@/components/GenerateQuizButton";
 import {
   ArrowLeft,
   BookOpen,
@@ -15,13 +17,20 @@ import {
   GraduationCap,
   HelpCircle,
   Trash2,
+  Brain,
 } from "lucide-react";
 
 interface NoteDetailProps {
   note: LearningNoteDetail;
+  practiceStatus?: {
+    hasDeck: boolean;
+    hasQuiz: boolean;
+    deckId: string | null;
+    quizId: string | null;
+  };
 }
 
-const NoteDetail = ({ note }: NoteDetailProps) => {
+const NoteDetail = ({ note, practiceStatus }: NoteDetailProps) => {
   const router = useRouter();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const formattedDate = note.session_started_at
@@ -198,6 +207,24 @@ const NoteDetail = ({ note }: NoteDetailProps) => {
           </ul>
         </section>
       )}
+
+      {/* Practice this lesson */}
+      <section className="note-section">
+        <div className="note-section-header">
+          <Brain className="size-5 text-primary" strokeWidth={1.8} />
+          <h2 className="text-xl">Practice This Lesson</h2>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <GenerateFlashcardsButton
+            noteId={note.id}
+            existingDeckId={practiceStatus?.deckId}
+          />
+          <GenerateQuizButton
+            noteId={note.id}
+            existingQuizId={practiceStatus?.quizId}
+          />
+        </div>
+      </section>
 
       <DeleteNoteDialog
         isOpen={showDeleteDialog}

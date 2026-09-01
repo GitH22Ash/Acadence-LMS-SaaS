@@ -447,6 +447,37 @@
   .note-status-icon.pending {
     @apply bg-warning/10;
   }
+
+  .note-badge.completed {
+    @apply bg-success/10 text-success border border-success/20;
+  }
+
+  /* --- Practice / Flashcards --- */
+  .flashcard-inner {
+    transition: transform 0.5s;
+    transform-style: preserve-3d;
+  }
+
+  .flashcard-flipped {
+    transform: rotateY(180deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .flashcard-inner {
+      transition: none;
+    }
+    .flashcard-flipped {
+      transform: none;
+    }
+    /* Show back content immediately for reduced motion */
+    .flashcard-flipped > div:first-child {
+      visibility: hidden;
+    }
+    .flashcard-flipped > div:last-child {
+      transform: none;
+      visibility: visible;
+    }
+  }
 }
 
 /* ============================================================================

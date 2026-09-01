@@ -28,7 +28,7 @@ export const getAllCompanions = async ({ limit = 10, page = 1, subject, topic }:
 
   const supabase = await createSupabaseClient();
 
-  let query = supabase.from("companions").select("*").eq("author", userId);
+  let query = supabase.from("companions").select("*").eq("author", userId).is("deleted_at", null);
 
   if (subject && topic) {
     query = query.ilike("subject", `%${subject}%`).or(`topic.ilike.%${topic}%,name.ilike.%${topic}%`);
@@ -123,7 +123,7 @@ export const getUserSessions = async (userId: string, limit = 10): Promise<Compa
 
 export const getUserCompanions = async (userId: string) => {
   const supabase = await createSupabaseClient();
-  const { data, error } = await supabase.from("companions").select().eq("author", userId);
+  const { data, error } = await supabase.from("companions").select().eq("author", userId).is("deleted_at", null);
 
   if (error) throw new Error(error.message);
 
@@ -149,7 +149,8 @@ export const newCompanionPermissions = async () => {
   const { data, error } = await supabase
     .from("companions")
     .select("id", { count: "exact" })
-    .eq("author", userId);
+    .eq("author", userId)
+    .is("deleted_at", null);
 
   if (error) throw new Error(error.message);
 
@@ -200,4 +201,57 @@ export const getBookmarkedCompanions = async (userId: string): Promise<Companion
     throw new Error(error.message);
   }
   return data.map(({ companions }) => companions as unknown as Companion);
+};
+
+// ---------------------------------------------------------------------------
+// Companion Deletion (Soft Delete)
+// ---------------------------------------------------------------------------
+
+/**
+ * Soft-delete a companion.
+ *
+ * Sets deleted_at to the current timestamp. The companion disappears from
+ * active views but all learning sessions, conversations, and notes are preserved.
+ *
+ * Why soft delete: learning_sessions.companion_id REFERENCES companions(id)
+ * with ON DELETE RESTRICT. Hard-deleting would fail if sessions exist, and
+ * even if it didn't, cascade deletion would destroy all learning history.
+ */
+export const deleteCompanion = async (companionId: string) => {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Authentication required");
+
+  const supabase = await createSupabaseClient();
+
+  // Verify companion belongs to this user
+  const { data: companion, error: fetchError } = await supabase
+    .from("companions")
+    .select("id, author")
+    .eq("id", companionId)
+    .eq("author", userId)
+    .is("deleted_at", null)
+    .single();
+
+  if (fetchError || !companion) {
+    throw new Error("Companion not found or access denied");
+  }
+
+  // Soft delete
+  const { error } = await supabase
+    .from("companions")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", companionId)
+    .eq("author", userId);
+
+  if (error) {
+    console.error("[companion] Failed to delete companion:", error.message);
+    throw new Error("Failed to delete companion");
+  }
+
+  // Revalidate affected routes
+  revalidatePath("/companions");
+  revalidatePath("/my-journey");
+  revalidatePath("/");
+
+  return { success: true };
 };

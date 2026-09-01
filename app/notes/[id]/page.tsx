@@ -1,4 +1,5 @@
 import { getNoteDetail, getSessionDetail, retryNoteGeneration } from "@/lib/actions/learning.actions";
+import { getNotesPracticeStatus } from "@/lib/actions/practice.actions";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import NoteDetail from "@/components/NoteDetail";
@@ -83,9 +84,12 @@ const NoteDetailPage = async ({ params }: NoteDetailPageProps) => {
     );
   }
 
+  // Fetch practice status for this note
+  const practiceStatus = await getNotesPracticeStatus(note.id);
+
   return (
     <main>
-      <NoteDetail note={note} />
+      <NoteDetail note={note} practiceStatus={practiceStatus} />
     </main>
   );
 };
