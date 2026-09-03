@@ -16,13 +16,19 @@ const FlashcardReviewPage = async ({ searchParams }: ReviewPageProps) => {
   const params = await searchParams;
   const deckId = typeof params.deckId === "string" ? params.deckId : undefined;
 
-  const dueCards = await getDueCards(deckId);
-
-  // Get deck title if reviewing a specific deck
+  let dueCards;
   let deckTitle: string | undefined;
+
   if (deckId) {
+    const { getDueCards } = await import("@/lib/actions/practice.actions");
+    dueCards = await getDueCards(deckId);
+    const { getDeckWithCards } = await import("@/lib/actions/practice.actions");
     const deck = await getDeckWithCards(deckId);
     deckTitle = deck?.title;
+  } else {
+    const { getSmartReviewCards } = await import("@/lib/actions/smart-practice.actions");
+    dueCards = await getSmartReviewCards();
+    deckTitle = "Smart Review";
   }
 
   if (dueCards.length === 0) {

@@ -23,8 +23,9 @@ import {
 import { subjects } from "@/constants";
 import { Textarea } from "@/components/ui/textarea";
 import { createCompanion } from "@/lib/actions/companion.actions";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Wand2 } from "lucide-react";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   name: z.string().min(1, { message: "Companion name is required." }),
@@ -48,13 +49,20 @@ const CompanionForm = () => {
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const companion = await createCompanion(values);
+  const router = useRouter();
 
-    if (companion) {
-      redirect(`/companions/${companion.id}`);
-    } else {
-      redirect("/");
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      const companion = await createCompanion(values);
+
+      if (companion) {
+        toast.success("Companion created successfully.");
+        router.push(`/companions/${companion.id}`);
+      } else {
+        toast.error("Couldn't create the companion. Please try again.");
+      }
+    } catch (error) {
+      toast.error("Couldn't create the companion. Please try again.");
     }
   };
 

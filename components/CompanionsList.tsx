@@ -16,16 +16,18 @@ interface CompanionsListProps {
   title: string;
   companions?: Companion[];
   classNames?: string;
+  hideTitle?: boolean;
 }
 
 const CompanionsList = ({
   title,
   companions,
   classNames,
+  hideTitle,
 }: CompanionsListProps) => {
   return (
     <article className={cn("companion-list", classNames)}>
-      <h2 className="font-bold text-2xl mb-4">{title}</h2>
+      {!hideTitle && <h2 className="font-bold text-2xl mb-4">{title}</h2>}
 
       {!companions || companions.length === 0 ? (
         <EmptyState

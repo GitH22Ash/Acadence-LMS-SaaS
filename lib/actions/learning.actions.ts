@@ -228,7 +228,7 @@ async function triggerNoteGeneration(sessionId: string, userId: string) {
   }
 
   // Upsert notes (session_id is UNIQUE, so this handles retries)
-  const { error: notesError } = await supabase
+  const { data: insertedNote, error: notesError } = await supabase
     .from("learning_notes")
     .upsert(
       {
@@ -246,10 +246,12 @@ async function triggerNoteGeneration(sessionId: string, userId: string) {
         model_name: result.modelName,
       },
       { onConflict: "session_id" }
-    );
+    )
+    .select("id")
+    .single();
 
-  if (notesError) {
-    console.error("[learning] Failed to save notes:", notesError.message);
+  if (notesError || !insertedNote) {
+    console.error("[learning] Failed to save notes:", notesError?.message);
     await supabase
       .from("learning_sessions")
       .update({ notes_status: "failed" })
@@ -262,6 +264,10 @@ async function triggerNoteGeneration(sessionId: string, userId: string) {
     .from("learning_sessions")
     .update({ notes_status: "completed" })
     .eq("id", sessionId);
+
+  // Extract and sync topics for learning intelligence
+  const { extractAndSyncTopics } = await import("./topic.actions");
+  await extractAndSyncTopics(insertedNote.id);
 
   console.log("[learning] Notes generated successfully for session:", sessionId);
   

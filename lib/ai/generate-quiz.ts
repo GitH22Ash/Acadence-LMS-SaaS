@@ -12,6 +12,10 @@ interface GenerateQuizParams {
   keyConcepts: string[];
   importantPoints: string[];
   examples: string[];
+  adaptiveContext?: {
+    weakTopics: string[];
+    strongTopics: string[];
+  };
 }
 
 interface GenerateQuizResult {
@@ -77,6 +81,14 @@ export async function generateQuiz(
 
   const learningMaterial = materialParts.join("\n\n");
 
+  let adaptiveInstructions = "";
+  if (params.adaptiveContext) {
+    const { weakTopics, strongTopics } = params.adaptiveContext;
+    if (weakTopics.length > 0) {
+      adaptiveInstructions = `\nADAPTIVE QUIZ INSTRUCTIONS:\n- These are the student's weak topics: ${weakTopics.join(", ")}.\n- These are strong topics: ${strongTopics.join(", ")}.\n- Construct a focused quiz. For example, if generating 6 questions, generate ~4 focused on weak topics, 1 moderate topic, 1 reinforcement question.\n- Questions must remain grounded in the student's learning material.`;
+    }
+  }
+
   const systemPrompt = `You are an expert educational quiz designer. Your task is to create a quiz from structured learning notes that tests a student's understanding of the material.
 
 Guidelines:
@@ -89,7 +101,7 @@ Guidelines:
 - Each explanation should be educational — briefly explain WHY the answer is correct.
 - Infer difficulty from conceptual complexity.
 - Generate 5–10 questions depending on material richness. Do not create 10 questions from thin material.
-- Order questions from easier to harder when possible.`;
+- Order questions from easier to harder when possible.${adaptiveInstructions}`;
 
   const userPrompt = `Subject: ${subject}${topic ? `\nTopic: ${topic}` : ""}${noteTitle ? `\nNote Title: ${noteTitle}` : ""}
 
