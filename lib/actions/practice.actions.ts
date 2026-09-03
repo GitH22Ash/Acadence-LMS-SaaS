@@ -307,7 +307,7 @@ export async function submitFlashcardReview(
     .from("flashcards")
     .select(`
       id,
-      flashcard_decks!inner (user_id)
+      flashcard_decks!inner (user_id, subject, title)
     `)
     .eq("id", flashcardId)
     .single();
@@ -315,6 +315,8 @@ export async function submitFlashcardReview(
   if (!card || (card as any).flashcard_decks?.user_id !== userId) {
     throw new Error("Card not found or access denied");
   }
+
+  const deck = (card as any).flashcard_decks;
 
   // Get the latest review for this card (if any)
   const { data: latestReview } = await supabase
@@ -335,7 +337,7 @@ export async function submitFlashcardReview(
   });
 
   // Insert the review record
-  const { error } = await supabase.from("flashcard_reviews").insert({
+  const { data: reviewRecord, error } = await supabase.from("flashcard_reviews").insert({
     flashcard_id: flashcardId,
     user_id: userId,
     rating,
@@ -343,11 +345,24 @@ export async function submitFlashcardReview(
     interval_days: reviewResult.nextIntervalDays,
     ease_factor: reviewResult.nextEaseFactor,
     review_count: (latestReview?.review_count ?? 0) + 1,
-  });
+  }).select("id").single();
 
   if (error) {
     console.error("[practice] Failed to save review:", error.message);
     throw new Error("Failed to save review");
+  }
+
+  // Record topic performance
+  const { ensureTopicsExist, recordTopicPerformance } = await import("./topic.actions");
+  const topicIds = await ensureTopicsExist(deck.subject || "General", [deck.title || "Flashcards"]);
+  if (topicIds.length > 0) {
+    // Map rating to score (e.g., again: 0, hard: 50, good: 80, easy: 100)
+    let score = 80;
+    if (rating === "again") score = 0;
+    else if (rating === "hard") score = 50;
+    else if (rating === "easy") score = 100;
+
+    await recordTopicPerformance(topicIds[0], "flashcard_review", reviewRecord?.id || null, score);
   }
 
   return { success: true, nextReviewAt: reviewResult.nextReviewAt.toISOString() };
@@ -409,6 +424,15 @@ export async function generateQuizFromNote(noteId: string) {
     throw new Error("Note not found or access denied");
   }
 
+  // Temporary diagnostics
+  console.log("[practice] Quiz input diagnostics:", {
+    noteId,
+    hasSummary: Boolean(note.summary),
+    keyConceptCount: Array.isArray(note.key_concepts) ? note.key_concepts.length : -1,
+    importantPointCount: Array.isArray(note.important_points) ? note.important_points.length : -1,
+    exampleCount: Array.isArray(note.examples) ? note.examples.length : -1
+  });
+
   // Generate quiz with AI
   const result = await generateQuiz({
     subject: note.subject || "General",
@@ -422,7 +446,7 @@ export async function generateQuizFromNote(noteId: string) {
 
   if (!result.success) {
     console.error("[practice] Quiz generation failed:", result.error);
-    throw new Error("Failed to generate quiz");
+    throw new Error(`Failed to generate quiz: ${result.error}`);
   }
 
   // Save the quiz
@@ -677,10 +701,15 @@ export async function completeQuizAttempt(attemptId: string) {
 
   const supabase = createSupabaseClient();
 
-  // Verify ownership
+  // Verify ownership and get quiz subject/title
   const { data: attempt } = await supabase
     .from("quiz_attempts")
-    .select("id, quiz_id, completed_at")
+    .select(`
+      id, 
+      quiz_id, 
+      completed_at,
+      quizzes!inner (subject, title)
+    `)
     .eq("id", attemptId)
     .eq("user_id", userId)
     .single();
@@ -689,6 +718,8 @@ export async function completeQuizAttempt(attemptId: string) {
   if (attempt.completed_at) {
     return { success: true, alreadyCompleted: true };
   }
+
+  const quiz = (attempt as any).quizzes;
 
   // Get all answers for this attempt
   const { data: answers } = await supabase
@@ -725,6 +756,14 @@ export async function completeQuizAttempt(attemptId: string) {
   if (error) {
     console.error("[practice] Failed to complete attempt:", error.message);
     throw new Error("Failed to complete quiz");
+  }
+
+  // Record topic performance
+  const { ensureTopicsExist, recordTopicPerformance } = await import("./topic.actions");
+  const topicIds = await ensureTopicsExist(quiz.subject || "General", [quiz.title || "Quiz"]);
+  if (topicIds.length > 0) {
+    const scorePct = (score / answers.length) * 100;
+    await recordTopicPerformance(topicIds[0], "quiz", attemptId, scorePct);
   }
 
   revalidatePath("/practice");

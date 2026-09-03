@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createSupabaseClient } from "@/lib/supabase";
 import { generateLearningNotes } from "@/lib/ai/generate-notes";
@@ -8,6 +9,9 @@ import {
   createSessionSchema,
   persistConversationSchema,
 } from "@/lib/schemas/learning-notes";
+
+/** Threshold in milliseconds — sessions stuck generating longer than this are considered stale */
+const STALE_GENERATING_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 // ---------------------------------------------------------------------------
 // 1. Create a new learning session when a Vapi call starts
@@ -153,121 +157,174 @@ export async function persistConversation(input: {
     console.error("[learning] Failed to update session:", updateError.message);
   }
 
-  // ── Trigger async note generation (fire-and-forget) ───────────────────
-  // We don't await this — the user shouldn't wait for AI generation
-  triggerNoteGeneration(session.id, userId).catch((err) => {
-    console.error("[learning] Background note generation failed:", err);
+  // ── Schedule note generation via Next.js after() ──────────────────────
+  // Runs after the response is sent to the client, but the runtime keeps
+  // the execution context alive until the callback finishes.
+  after(async () => {
+    try {
+      await triggerNoteGeneration(session.id, userId);
+    } catch (err) {
+      console.error("[notes-debug] after() note generation threw:", err);
+      // Last-resort: ensure status is not stuck at 'generating'
+      try {
+        const sb = createSupabaseClient();
+        await sb
+          .from("learning_sessions")
+          .update({ notes_status: "failed" })
+          .eq("id", session.id);
+      } catch { /* swallow — we're in cleanup */ }
+    }
   });
 
   return { success: true, alreadyProcessed: false };
 }
 
 // ---------------------------------------------------------------------------
-// 4. Generate and save AI notes (called internally)
+// 4. Generate and save AI notes (called internally or from after())
 // ---------------------------------------------------------------------------
 async function triggerNoteGeneration(sessionId: string, userId: string) {
-  const supabase = await createSupabaseClient();
+  const supabase = createSupabaseClient();
 
-  // Update status to 'generating'
-  await supabase
-    .from("learning_sessions")
-    .update({ notes_status: "generating" })
-    .eq("id", sessionId)
-    .eq("user_id", userId);
-
-  // Fetch session details
-  const { data: session } = await supabase
-    .from("learning_sessions")
-    .select("subject, topic, companion_id")
-    .eq("id", sessionId)
-    .single();
-
-  if (!session) {
-    console.error("[learning] Session not found for note generation:", sessionId);
-    return;
-  }
-
-  // Fetch companion name
-  const { data: companion } = await supabase
-    .from("companions")
-    .select("name")
-    .eq("id", session.companion_id)
-    .single();
-
-  // Fetch finalized conversation messages
-  const { data: messages } = await supabase
-    .from("conversation_messages")
-    .select("role, content")
-    .eq("session_id", sessionId)
-    .order("sequence_number", { ascending: true });
-
-  if (!messages || messages.length === 0) {
-    console.error("[learning] No messages found for note generation:", sessionId);
+  try {
+    // ── Step 1: Mark as generating ──────────────────────────────────────
+    console.log(`[notes-debug] 1 start generation sessionId=${sessionId}`);
     await supabase
       .from("learning_sessions")
-      .update({ notes_status: "failed" })
-      .eq("id", sessionId);
-    return;
-  }
+      .update({ notes_status: "generating" })
+      .eq("id", sessionId)
+      .eq("user_id", userId);
+    console.log("[notes-debug] 2 status set to generating");
 
-  // Generate notes with AI
-  const result = await generateLearningNotes({
-    subject: session.subject,
-    topic: session.topic || undefined,
-    companionName: companion?.name || undefined,
-    messages: messages as { role: "user" | "assistant"; content: string }[],
-  });
+    // ── Step 2: Fetch session details ──────────────────────────────────
+    const { data: session } = await supabase
+      .from("learning_sessions")
+      .select("subject, topic, companion_id")
+      .eq("id", sessionId)
+      .single();
 
-  if (!result.success) {
-    console.error("[learning] AI generation failed:", result.error);
+    if (!session) {
+      console.error(`[notes-debug] session not found sessionId=${sessionId}`);
+      await markNotesFailed(supabase, sessionId);
+      return;
+    }
+    console.log("[notes-debug] 3 session loaded");
+
+    // ── Step 3: Fetch companion name ──────────────────────────────────
+    const { data: companion } = await supabase
+      .from("companions")
+      .select("name")
+      .eq("id", session.companion_id)
+      .single();
+    console.log(`[notes-debug] 4 companion loaded name=${companion?.name || "unknown"}`);
+
+    // ── Step 4: Fetch finalized messages ──────────────────────────────
+    const { data: messages } = await supabase
+      .from("conversation_messages")
+      .select("role, content")
+      .eq("session_id", sessionId)
+      .order("sequence_number", { ascending: true });
+
+    if (!messages || messages.length === 0) {
+      console.error(`[notes-debug] no messages found sessionId=${sessionId}`);
+      await markNotesFailed(supabase, sessionId);
+      return;
+    }
+    console.log(`[notes-debug] 5 messages loaded count=${messages.length}`);
+
+    // ── Step 5: Generate notes with AI ────────────────────────────────
+    console.log("[notes-debug] 6 calling Gemini");
+    const result = await generateLearningNotes({
+      subject: session.subject,
+      topic: session.topic || undefined,
+      companionName: companion?.name || undefined,
+      messages: messages as { role: "user" | "assistant"; content: string }[],
+    });
+    console.log(`[notes-debug] 7 Gemini returned success=${result.success}`);
+
+    if (!result.success) {
+      console.error(`[notes-debug] AI generation failed: ${result.error}`);
+      await markNotesFailed(supabase, sessionId);
+      return;
+    }
+
+    // ── Step 6: Upsert notes (session_id is UNIQUE → handles retries) ─
+    console.log("[notes-debug] 8 saving notes");
+    const { data: insertedNote, error: notesError } = await supabase
+      .from("learning_notes")
+      .upsert(
+        {
+          session_id: sessionId,
+          user_id: userId,
+          title: result.notes.title,
+          subject: result.notes.subject,
+          summary: result.notes.summary,
+          key_concepts: result.notes.keyConcepts,
+          important_points: result.notes.importantPoints,
+          examples: result.notes.examples,
+          questions_to_review: result.notes.questionsToReview,
+          misconceptions: result.notes.misconceptions,
+          next_steps: result.notes.nextSteps,
+          model_name: result.modelName,
+        },
+        { onConflict: "session_id" }
+      )
+      .select("id")
+      .single();
+
+    if (notesError || !insertedNote) {
+      console.error(`[notes-debug] failed to save notes: ${notesError?.message}`);
+      await markNotesFailed(supabase, sessionId);
+      return;
+    }
+    console.log(`[notes-debug] 9 note saved noteId=${insertedNote.id}`);
+
+    // ── Step 7: Mark notes as completed (CRITICAL — do before topic sync) ─
     await supabase
       .from("learning_sessions")
-      .update({ notes_status: "failed" })
+      .update({ notes_status: "completed" })
       .eq("id", sessionId);
-    return;
-  }
+    console.log("[notes-debug] 10 status set to completed");
 
-  // Upsert notes (session_id is UNIQUE, so this handles retries)
-  const { error: notesError } = await supabase
-    .from("learning_notes")
-    .upsert(
-      {
-        session_id: sessionId,
-        user_id: userId,
-        title: result.notes.title,
-        subject: result.notes.subject,
-        summary: result.notes.summary,
-        key_concepts: result.notes.keyConcepts,
-        important_points: result.notes.importantPoints,
-        examples: result.notes.examples,
-        questions_to_review: result.notes.questionsToReview,
-        misconceptions: result.notes.misconceptions,
-        next_steps: result.notes.nextSteps,
-        model_name: result.modelName,
-      },
-      { onConflict: "session_id" }
+    // ── Step 8: Topic sync (NON-CRITICAL — cannot affect note status) ──
+    try {
+      console.log("[notes-debug] 11 topic sync start");
+      const { extractAndSyncTopics } = await import("./topic.actions");
+      await extractAndSyncTopics(insertedNote.id, userId);
+      console.log("[notes-debug] 12 topic sync complete");
+    } catch (topicError) {
+      // Topic sync failure must NOT change the note status
+      console.error(
+        `[notes-debug] topic sync failed (non-critical) sessionId=${sessionId}`,
+        topicError instanceof Error ? topicError.message : topicError
+      );
+    }
+
+    console.log(`[notes-debug] ✅ notes generated successfully sessionId=${sessionId}`);
+
+    // Clear Next.js cache so the UI updates
+    revalidatePath("/notes");
+    revalidatePath(`/notes/${sessionId}`);
+  } catch (error) {
+    // ── Top-level safety net — NOTHING should leave status stuck ────────
+    console.error(
+      `[notes-debug] ❌ unexpected error in triggerNoteGeneration sessionId=${sessionId}`,
+      error instanceof Error ? error.message : error
     );
+    await markNotesFailed(supabase, sessionId);
+  }
+}
 
-  if (notesError) {
-    console.error("[learning] Failed to save notes:", notesError.message);
+/** Helper to safely mark notes as failed — swallows DB errors during cleanup */
+async function markNotesFailed(supabase: ReturnType<typeof createSupabaseClient>, sessionId: string) {
+  try {
     await supabase
       .from("learning_sessions")
       .update({ notes_status: "failed" })
       .eq("id", sessionId);
-    return;
+    console.log(`[notes-debug] status set to failed sessionId=${sessionId}`);
+  } catch (err) {
+    console.error(`[notes-debug] CRITICAL: could not set failed status sessionId=${sessionId}`, err);
   }
-
-  // Mark notes as completed
-  await supabase
-    .from("learning_sessions")
-    .update({ notes_status: "completed" })
-    .eq("id", sessionId);
-
-  console.log("[learning] Notes generated successfully for session:", sessionId);
-  
-  // Clear Next.js cache so the UI updates
-  revalidatePath("/notes");
-  revalidatePath(`/notes/${sessionId}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -277,25 +334,38 @@ export async function retryNoteGeneration(sessionId: string) {
   const { userId } = await auth();
   if (!userId) throw new Error("Authentication required");
 
-  const supabase = await createSupabaseClient();
+  const supabase = createSupabaseClient();
 
-  // Verify ownership and failed status
+  // Verify ownership and retryable status
   const { data: session } = await supabase
     .from("learning_sessions")
-    .select("id, notes_status")
+    .select("id, notes_status, ended_at")
     .eq("id", sessionId)
     .eq("user_id", userId)
     .single();
 
   if (!session) throw new Error("Session not found or access denied");
 
-  if (session.notes_status !== "failed") {
-    return { success: true, message: "Notes are not in a failed state" };
+  const isRetryable =
+    session.notes_status === "failed" ||
+    (session.notes_status === "generating" && isStaleGenerating(session.ended_at));
+
+  if (!isRetryable) {
+    return { success: true, message: "Notes are not in a retryable state" };
   }
 
-  // Trigger regeneration
+  console.log(`[notes-debug] retry requested sessionId=${sessionId} status=${session.notes_status}`);
+
+  // Trigger regeneration (awaited — this is a user-initiated action)
   await triggerNoteGeneration(sessionId, userId);
   return { success: true };
+}
+
+/** Check if a session's generating state is stale (older than threshold) */
+function isStaleGenerating(endedAt: string | null): boolean {
+  if (!endedAt) return true; // No ended_at means something went wrong
+  const elapsed = Date.now() - new Date(endedAt).getTime();
+  return elapsed > STALE_GENERATING_THRESHOLD_MS;
 }
 
 // ---------------------------------------------------------------------------

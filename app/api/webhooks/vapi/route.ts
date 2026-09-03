@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     // Find the matching Acadence session
     const { data: session } = await supabase
       .from("learning_sessions")
-      .select("id, user_id, status, subject, topic, companion_id")
+      .select("id, user_id, status, notes_status, subject, topic, companion_id")
       .eq("vapi_call_id", callId)
       .single();
 
@@ -118,6 +118,12 @@ export async function POST(request: NextRequest) {
         .select("role, content")
         .eq("session_id", session.id)
         .order("sequence_number", { ascending: true });
+
+      // Skip note generation if already being handled by the client-side path
+      if (session.notes_status === "completed" || session.notes_status === "generating") {
+        console.log(`[webhook/vapi] Notes already ${session.notes_status}, skipping generation:`, session.id);
+        return NextResponse.json({ received: true, processed: true, notesSkipped: true });
+      }
 
       if (savedMessages && savedMessages.length > 0) {
         await supabase
