@@ -34,17 +34,44 @@ const NoteDetailPage = async ({ params }: NoteDetailPageProps) => {
     return (
       <main>
         <div className="flex flex-col items-center justify-center min-h-[50vh] text-center gap-4">
-          {session.notes_status === "generating" && (
-            <>
-              <div className="note-status-icon generating">
-                <div className="size-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-              </div>
-              <h2>Generating notes...</h2>
-              <p className="text-muted-foreground max-w-sm">
-                Your conversation has been saved. Acadence is organizing what you learned into structured study notes.
-              </p>
-            </>
-          )}
+          {session.notes_status === "generating" && (() => {
+            // Detect if generating state is stale (>5 min since session ended)
+            const endedAt = session.ended_at ? new Date(session.ended_at).getTime() : 0;
+            const isStale = endedAt > 0 && (Date.now() - endedAt) > 5 * 60 * 1000;
+
+            return isStale ? (
+              <>
+                <div className="note-status-icon failed">
+                  <span className="text-2xl">⏱️</span>
+                </div>
+                <h2>Generation appears to have stalled</h2>
+                <p className="text-muted-foreground max-w-sm">
+                  Your conversation is safely stored. You can try generating notes again.
+                </p>
+                <form
+                  action={async () => {
+                    "use server";
+                    await retryNoteGeneration(id);
+                    redirect(`/notes/${id}`);
+                  }}
+                >
+                  <button type="submit" className="btn-primary mt-2">
+                    Retry
+                  </button>
+                </form>
+              </>
+            ) : (
+              <>
+                <div className="note-status-icon generating">
+                  <div className="size-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                </div>
+                <h2>Generating notes...</h2>
+                <p className="text-muted-foreground max-w-sm">
+                  Your conversation has been saved. Acadence is organizing what you learned into structured study notes.
+                </p>
+              </>
+            );
+          })()}
           {session.notes_status === "failed" && (
             <>
               <div className="note-status-icon failed">

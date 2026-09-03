@@ -8,9 +8,13 @@ export type TopicPerformanceEventType = "quiz" | "flashcard_review" | "session";
 
 /**
  * Extracts topics from a newly generated note and upserts them into learning_topics.
+ *
+ * @param noteId - The ID of the note to extract topics from.
+ * @param callerUserId - Optional. If provided, skips auth() lookup. Use this when
+ *   calling from background contexts (e.g., after()) where Clerk auth is unavailable.
  */
-export async function extractAndSyncTopics(noteId: string) {
-  const { userId } = await auth();
+export async function extractAndSyncTopics(noteId: string, callerUserId?: string) {
+  const userId = callerUserId || (await auth()).userId;
   if (!userId) return { success: false, error: "Authentication required" };
 
   const supabase = createSupabaseClient();

@@ -50,7 +50,13 @@ export async function generateQuiz(
     examples,
   } = params;
 
-  if (!summary && keyConcepts.length === 0 && importantPoints.length === 0) {
+  const hasLearningMaterial =
+    Boolean(summary?.trim()) ||
+    keyConcepts.length > 0 ||
+    importantPoints.length > 0 ||
+    examples.length > 0;
+
+  if (!hasLearningMaterial) {
     return {
       success: false,
       error: "Not enough learning material to generate a quiz",

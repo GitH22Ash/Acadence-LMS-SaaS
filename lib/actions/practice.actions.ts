@@ -424,6 +424,15 @@ export async function generateQuizFromNote(noteId: string) {
     throw new Error("Note not found or access denied");
   }
 
+  // Temporary diagnostics
+  console.log("[practice] Quiz input diagnostics:", {
+    noteId,
+    hasSummary: Boolean(note.summary),
+    keyConceptCount: Array.isArray(note.key_concepts) ? note.key_concepts.length : -1,
+    importantPointCount: Array.isArray(note.important_points) ? note.important_points.length : -1,
+    exampleCount: Array.isArray(note.examples) ? note.examples.length : -1
+  });
+
   // Generate quiz with AI
   const result = await generateQuiz({
     subject: note.subject || "General",
@@ -437,7 +446,7 @@ export async function generateQuizFromNote(noteId: string) {
 
   if (!result.success) {
     console.error("[practice] Quiz generation failed:", result.error);
-    throw new Error("Failed to generate quiz");
+    throw new Error(`Failed to generate quiz: ${result.error}`);
   }
 
   // Save the quiz
